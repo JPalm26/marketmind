@@ -1,0 +1,801 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MarketMind — Competitor Intelligence</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --navy-dark: #0a192f;
+            --navy-light: #112240;
+            --slate: #8892b0;
+            --white: #ffffff;
+            --accent: #64ffda;
+            --border: #233554;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--white);
+            color: var(--navy-dark);
+            line-height: 1.6;
+        }
+
+        header {
+            background-color: var(--navy-dark);
+            color: var(--white);
+            padding: 0 0 3rem 0;
+            text-align: center;
+        }
+
+        .hero-image {
+            width: 100%;
+            height: 200px;
+            object-fit: cover;
+            display: block;
+            margin-bottom: 2rem;
+        }
+
+        header h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            letter-spacing: -0.025em;
+        }
+
+        header p {
+            color: var(--slate);
+            font-size: 1.1rem;
+            font-weight: 400;
+        }
+
+        main {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem 1rem;
+        }
+
+        .search-container {
+            margin-bottom: 2rem;
+            display: flex;
+            justify-content: center;
+        }
+
+        #search-input {
+            width: 100%;
+            max-width: 600px;
+            padding: 0.75rem 1.25rem;
+            font-size: 1rem;
+            border: 2px solid var(--border);
+            border-radius: 8px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        #search-input:focus {
+            border-color: var(--navy-dark);
+        }
+
+        .table-wrapper {
+            overflow-x: auto;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            margin-bottom: 3rem;
+        }
+
+        .chart-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+            margin-bottom: 3rem;
+        }
+
+        .chart-container {
+            background: white;
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            height: 400px;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+        }
+
+        @media (max-width: 992px) {
+            .chart-grid { grid-template-columns: 1fr; }
+        }
+
+        .chart-container canvas {
+            flex-grow: 1;
+            width: 100% !important;
+            height: auto !important;
+        }
+
+        .section-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 1.5rem;
+            color: var(--navy-dark);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+        }
+
+        th {
+            background-color: var(--navy-dark);
+            color: var(--white);
+            padding: 1rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 0.8rem;
+            letter-spacing: 0.05em;
+        }
+
+        td {
+            padding: 1rem;
+            border-bottom: 1px solid #e2e8f0;
+            font-size: 0.95rem;
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        tr:hover td {
+            background-color: #f1f5f9;
+        }
+
+        .company-cell {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+
+        .dot-high { background-color: #10b981; } /* Green */
+        .dot-mid { background-color: #f59e0b; }  /* Yellow */
+        .dot-low { background-color: #ef4444; }  /* Red */
+
+        .company-name {
+            font-weight: 700;
+            color: var(--navy-dark);
+        }
+
+        .funding {
+            font-family: monospace;
+            font-weight: 600;
+        }
+
+        .score-cell {
+            font-weight: 800;
+            text-align: center;
+        }
+
+        .score-high { color: #10b981; }
+        .score-mid { color: #f59e0b; }
+        .score-low { color: #ef4444; }
+
+        /* Modal Styles */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(10, 25, 47, 0.85);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            backdrop-filter: blur(4px);
+        }
+
+        .modal-content {
+            background: var(--white);
+            width: 90%;
+            max-width: 800px;
+            max-height: 90vh;
+            border-radius: 12px;
+            overflow-y: auto;
+            position: relative;
+            padding: 2.5rem;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2);
+        }
+
+        .close-modal {
+            position: absolute;
+            top: 1.5rem;
+            right: 1.5rem;
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            color: var(--navy-dark);
+            cursor: pointer;
+            padding: 0.5rem;
+            line-height: 1;
+        }
+
+        .modal-header {
+            border-bottom: 2px solid var(--navy-dark);
+            padding-bottom: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .modal-header h2 {
+            font-size: 2rem;
+            color: var(--navy-dark);
+        }
+
+        .detail-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+        }
+
+        .swot-section h3, .metrics-section h3, .timeline-section h3 {
+            font-size: 1.1rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 1rem;
+            color: var(--slate);
+            border-left: 4px solid var(--navy-dark);
+            padding-left: 0.75rem;
+        }
+
+        .swot-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+
+        .swot-box {
+            padding: 1rem;
+            border-radius: 6px;
+            font-size: 0.85rem;
+        }
+
+        .swot-s { background: #ecfdf5; border: 1px solid #10b981; color: #065f46; }
+        .swot-w { background: #fef2f2; border: 1px solid #ef4444; color: #991b1b; }
+        .swot-o { background: #eff6ff; border: 1px solid #3b82f6; color: #1e40af; }
+        .swot-t { background: #fffbeb; border: 1px solid #f59e0b; color: #92400e; }
+
+        .metrics-row {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .metric-card {
+            flex: 1;
+            padding: 1rem;
+            background: #f8fafc;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .metric-value {
+            display: block;
+            font-size: 1.25rem;
+            font-weight: 800;
+            color: var(--navy-dark);
+        }
+
+        .metric-label {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            color: var(--slate);
+        }
+
+        .timeline-list {
+            list-style: none;
+        }
+
+        .timeline-item {
+            padding: 0.75rem 0;
+            border-bottom: 1px dashed #e2e8f0;
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.9rem;
+        }
+
+        .timeline-item:last-child { border: none; }
+
+        #competitor-table tbody tr {
+            cursor: pointer;
+            transition: transform 0.1s;
+        }
+
+        #competitor-table tbody tr:active {
+            transform: scale(0.995);
+        }
+
+        @media (max-width: 768px) {
+            .detail-grid { grid-template-columns: 1fr; }
+            .modal-content { padding: 1.5rem; }
+        }
+
+        footer {
+            margin-top: 4rem;
+            padding: 2rem;
+            background-color: var(--navy-dark);
+            color: var(--slate);
+            text-align: center;
+            font-size: 0.9rem;
+        }
+
+        footer p {
+            margin-bottom: 0.5rem;
+        }
+
+        @media (max-width: 768px) {
+            header h1 {
+                font-size: 1.8rem;
+            }
+            
+            td, th {
+                padding: 0.75rem;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<header>
+    <img src="nanobanana-output/hero.jpeg" alt="MarketMind hero" class="hero-image">
+    <h1>MarketMind</h1>
+    <p>Know your competition, own your market</p>
+</header>
+
+<main>
+    <div class="search-container">
+        <input type="text" id="search-input" placeholder="Search by company or product...">
+    </div>
+
+    <div class="table-wrapper">
+        <table id="competitor-table">
+            <thead>
+                <tr>
+                    <th>Company Name</th>
+                    <th>Year</th>
+                    <th>Funding ($M)</th>
+                    <th>Market Score</th>
+                    <th>Employees</th>
+                    <th>Key Product</th>
+                    <th>Description</th>
+                </tr>
+            </thead>
+            <tbody id="table-body">
+                <!-- Data will be injected here -->
+            </tbody>
+        </table>
+    </div>
+
+    <div class="chart-grid">
+        <div class="chart-container">
+            <h2 class="section-title">Funding Comparison ($M)</h2>
+            <canvas id="fundingChart"></canvas>
+        </div>
+
+        <div class="chart-container">
+            <h2 class="section-title">Market Positioning</h2>
+            <canvas id="radarChart"></canvas>
+        </div>
+    </div>
+</main>
+
+<div class="modal-overlay" id="modal-overlay">
+    <div class="modal-content">
+        <button class="close-modal" id="close-modal">&times;</button>
+        <div class="modal-header">
+            <h2 id="modal-company-name">Company Name</h2>
+        </div>
+        
+        <div class="metrics-section">
+            <h3>Key Performance Metrics</h3>
+            <div class="metrics-row">
+                <div class="metric-card">
+                    <span class="metric-value" id="metric-retention">0%</span>
+                    <span class="metric-label">Retention</span>
+                </div>
+                <div class="metric-card">
+                    <span class="metric-value" id="metric-cac">$0</span>
+                    <span class="metric-label">CAC</span>
+                </div>
+                <div class="metric-card">
+                    <span class="metric-value" id="metric-ltv">$0k</span>
+                    <span class="metric-label">LTV</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="detail-grid">
+            <div class="swot-section">
+                <h3>SWOT Analysis</h3>
+                <div class="swot-grid">
+                    <div class="swot-box swot-s">
+                        <strong>Strengths</strong>
+                        <p id="swot-strengths"></p>
+                    </div>
+                    <div class="swot-box swot-w">
+                        <strong>Weaknesses</strong>
+                        <p id="swot-weaknesses"></p>
+                    </div>
+                    <div class="swot-box swot-o">
+                        <strong>Opportunities</strong>
+                        <p id="swot-opportunities"></p>
+                    </div>
+                    <div class="swot-box swot-t">
+                        <strong>Threats</strong>
+                        <p id="swot-threats"></p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="timeline-section">
+                <h3>Funding Timeline</h3>
+                <div class="timeline-list" id="funding-timeline">
+                    <!-- Timeline items injected here -->
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<footer>
+    <p>&copy; 2026 MarketMind Competitor Intelligence. All rights reserved.</p>
+    <p>Built for professionals who lead the market.</p>
+</footer>
+
+<script>
+    const competitors = [
+        {
+            name: "CloudScale",
+            year: 2019,
+            funding: 45,
+            employees: 120,
+            product: "AutoScaler Pro",
+            description: "Automated cloud infrastructure optimization for high-growth enterprises.",
+            metrics: { retention: "94%", cac: "$450", ltv: "$12k" },
+            swot: {
+                s: "Industry-leading automation algorithms.",
+                w: "High initial implementation time.",
+                o: "Expansion into APAC markets.",
+                t: "Increasing competition from cloud providers."
+            },
+            timeline: [
+                { round: "Series B", amount: "$30M", year: 2023 },
+                { round: "Series A", amount: "$12M", year: 2021 },
+                { round: "Seed", amount: "$3M", year: 2019 }
+            ],
+            radarData: [85, 70, 60, 90, 75] // Funding, Team, Market, Product, Growth
+        },
+        {
+            name: "DataNexus",
+            year: 2021,
+            funding: 12,
+            employees: 35,
+            product: "NexusBI",
+            description: "Real-time business intelligence layer for decentralized data teams.",
+            metrics: { retention: "88%", cac: "$210", ltv: "$5k" },
+            swot: {
+                s: "Superior data visualization engine.",
+                w: "Limited native integrations.",
+                o: "Partnership with Snowflake.",
+                t: "Consolidation in the BI market."
+            },
+            timeline: [
+                { round: "Series A", amount: "$10M", year: 2024 },
+                { round: "Seed", amount: "$2M", year: 2021 }
+            ],
+            radarData: [40, 30, 45, 80, 85]
+        },
+        {
+            name: "SecureFlow",
+            year: 2018,
+            funding: 88,
+            employees: 250,
+            product: "GuardPost",
+            description: "Zero-trust network security platform with AI-driven threat detection.",
+            metrics: { retention: "97%", cac: "$800", ltv: "$45k" },
+            swot: {
+                s: "Patented AI threat detection.",
+                w: "Complex user interface.",
+                o: "Government sector contracts.",
+                t: "Rapidly evolving cyber threats."
+            },
+            timeline: [
+                { round: "Series C", amount: "$50M", year: 2024 },
+                { round: "Series B", amount: "$25M", year: 2021 },
+                { round: "Series A", amount: "$10M", year: 2019 },
+                { round: "Seed", amount: "$3M", year: 2018 }
+            ],
+            radarData: [95, 95, 85, 85, 65]
+        },
+        {
+            name: "LogiStack",
+            year: 2020,
+            funding: 22,
+            employees: 75,
+            product: "StackSync",
+            description: "End-to-end supply chain visibility and logistics automation software.",
+            metrics: { retention: "91%", cac: "$320", ltv: "$18k" },
+            swot: {
+                s: "Real-time tracking accuracy.",
+                w: "High dependency on third-party APIs.",
+                o: "E-commerce boom in emerging markets.",
+                t: "Geopolitical supply chain disruptions."
+            },
+            timeline: [
+                { round: "Series A", amount: "$15M", year: 2023 },
+                { round: "Seed", amount: "$7M", year: 2020 }
+            ],
+            radarData: [55, 50, 55, 75, 80]
+        },
+        {
+            name: "FinVantage",
+            year: 2022,
+            funding: 5,
+            employees: 18,
+            product: "VantagePay",
+            description: "Simplified cross-border payment processing for global freelancers.",
+            metrics: { retention: "82%", cac: "$45", ltv: "$1.2k" },
+            swot: {
+                s: "Ultra-low transaction fees.",
+                w: "Limited currency support.",
+                o: "Gig economy growth.",
+                t: "Stricter fintech regulations."
+            },
+            timeline: [
+                { round: "Seed", amount: "$5M", year: 2022 }
+            ],
+            radarData: [20, 20, 30, 65, 90]
+        }
+    ];
+
+    const tableBody = document.getElementById('table-body');
+    const searchInput = document.getElementById('search-input');
+
+    function renderTable(data) {
+        tableBody.innerHTML = '';
+        
+        // Calculate scores and sort
+        const enrichedData = data.map(item => ({
+            ...item,
+            score: (item.funding / 10) + (item.employees / 100)
+        })).sort((a, b) => b.score - a.score);
+
+        enrichedData.forEach((item, index) => {
+            let dotClass = 'dot-low';
+            if (item.funding > 50) {
+                dotClass = 'dot-high';
+            } else if (item.funding >= 10) {
+                dotClass = 'dot-mid';
+            }
+
+            let scoreClass = 'score-low';
+            if (index < 2) {
+                scoreClass = 'score-high';
+            } else if (index < 4) {
+                scoreClass = 'score-mid';
+            }
+
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>
+                    <div class="company-cell">
+                        <span class="status-dot ${dotClass}"></span>
+                        <span class="company-name">${item.name}</span>
+                    </div>
+                </td>
+                <td>${item.year}</td>
+                <td class="funding">$${item.funding}M</td>
+                <td class="score-cell ${scoreClass}">${item.score.toFixed(2)}</td>
+                <td>${item.employees}</td>
+                <td><strong>${item.product}</strong></td>
+                <td>${item.description}</td>
+            `;
+            
+            row.addEventListener('click', () => openModal(item));
+            tableBody.appendChild(row);
+        });
+    }
+
+    // Modal Logic
+    const modalOverlay = document.getElementById('modal-overlay');
+    const closeModalBtn = document.getElementById('close-modal');
+
+    function openModal(company) {
+        document.getElementById('modal-company-name').innerText = company.name;
+        document.getElementById('metric-retention').innerText = company.metrics.retention;
+        document.getElementById('metric-cac').innerText = company.metrics.cac;
+        document.getElementById('metric-ltv').innerText = company.metrics.ltv;
+
+        document.getElementById('swot-strengths').innerText = company.swot.s;
+        document.getElementById('swot-weaknesses').innerText = company.swot.w;
+        document.getElementById('swot-opportunities').innerText = company.swot.o;
+        document.getElementById('swot-threats').innerText = company.swot.t;
+
+        const timelineContainer = document.getElementById('funding-timeline');
+        timelineContainer.innerHTML = '';
+        company.timeline.forEach(round => {
+            const item = document.createElement('div');
+            item.className = 'timeline-item';
+            item.innerHTML = `
+                <span><strong>${round.round}</strong> (${round.year})</span>
+                <span>${round.amount}</span>
+            `;
+            timelineContainer.appendChild(item);
+        });
+
+        modalOverlay.style.display = 'flex';
+    }
+
+    function closeModal() {
+        modalOverlay.style.display = 'none';
+    }
+
+    closeModalBtn.addEventListener('click', closeModal);
+    modalOverlay.addEventListener('click', (e) => {
+        if (e.target === modalOverlay) closeModal();
+    });
+
+    searchInput.addEventListener('input', (e) => {
+        const searchTerm = e.target.value.toLowerCase();
+        const filtered = competitors.filter(item => 
+            item.name.toLowerCase().includes(searchTerm) || 
+            item.product.toLowerCase().includes(searchTerm) ||
+            item.description.toLowerCase().includes(searchTerm)
+        );
+        renderTable(filtered);
+    });
+
+    // Initial render
+    renderTable(competitors);
+
+    // Chart.js implementation
+    const ctx = document.getElementById('fundingChart').getContext('2d');
+    const fundingChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: competitors.map(c => c.name),
+            datasets: [{
+                label: 'Total Funding ($M)',
+                data: competitors.map(c => c.funding),
+                backgroundColor: '#0a192f',
+                borderColor: '#233554',
+                borderWidth: 1,
+                borderRadius: 4
+            }]
+        },
+        options: {
+            indexAxis: 'y',
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                x: {
+                    beginAtZero: true,
+                    grid: {
+                        display: false
+                    },
+                    ticks: {
+                        color: '#8892b0',
+                        font: {
+                            family: 'Inter'
+                        }
+                    }
+                },
+                y: {
+                    grid: {
+                        display: false
+                    },
+                    ticks: {
+                        color: '#0a192f',
+                        font: {
+                            family: 'Inter',
+                            weight: 'bold'
+                        }
+                    }
+                }
+            },
+            plugins: {
+                legend: {
+                    display: false
+                },
+                tooltip: {
+                    backgroundColor: '#0a192f',
+                    titleFont: { family: 'Inter' },
+                    bodyFont: { family: 'Inter' },
+                    padding: 12,
+                    displayColors: false,
+                    callbacks: {
+                        label: function(context) {
+                            return `Funding: $${context.raw}M`;
+                        }
+                    }
+                }
+            }
+        }
+    });
+
+    // Radar Chart implementation
+    const radarCtx = document.getElementById('radarChart').getContext('2d');
+    const radarChart = new Chart(radarCtx, {
+        type: 'radar',
+        data: {
+            labels: ['Funding', 'Team Size', 'Market Share', 'Product Features', 'Growth Rate'],
+            datasets: competitors.map((c, i) => ({
+                label: c.name,
+                data: c.radarData,
+                backgroundColor: i === 0 ? 'rgba(10, 25, 47, 0.2)' : 'transparent',
+                borderColor: i === 0 ? '#0a192f' : `hsla(${i * 60}, 70%, 50%, 0.8)`,
+                borderWidth: 2,
+                pointBackgroundColor: i === 0 ? '#0a192f' : `hsla(${i * 60}, 70%, 50%, 1)`,
+                hidden: i > 2 // Hide some by default to keep it clean
+            }))
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                r: {
+                    angleLines: {
+                        color: '#e2e8f0'
+                    },
+                    grid: {
+                        color: '#e2e8f0'
+                    },
+                    pointLabels: {
+                        color: '#0a192f',
+                        font: {
+                            family: 'Inter',
+                            size: 12,
+                            weight: 'bold'
+                        }
+                    },
+                    ticks: {
+                        display: false,
+                        max: 100,
+                        min: 0,
+                        stepSize: 20
+                    }
+                }
+            },
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: {
+                        boxWidth: 12,
+                        padding: 20,
+                        font: { family: 'Inter', size: 11 }
+                    }
+                },
+                tooltip: {
+                    backgroundColor: '#0a192f',
+                    titleFont: { family: 'Inter' },
+                    bodyFont: { family: 'Inter' },
+                    padding: 12
+                }
+            }
+        }
+    });
+</script>
+
+</body>
+</html>
